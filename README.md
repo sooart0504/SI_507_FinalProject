@@ -1,7 +1,7 @@
 # SI_507_FinalProject (Incomplete program | Data Checkpoint)
-# Created by Soo Ji Choi
+## Created by Soo Ji Choi
 
-# Project Summary
+## Project Summary
 A personalized health intervention program that suggests exercise videos based on the user's affective state, logs and displays the user’s overall affective state.
 
 Project Interaction Flow & Components
