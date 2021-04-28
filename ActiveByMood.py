@@ -4,11 +4,6 @@
 #########################################
 
 """
-*** ACTION ITEM ***
-- Connect MoodAssistant class to create instances of attributes
-- Create database that saves user inputs
-- Retrieve all data from database to visualize using plotly
-____________________
 Documentations and Tutorials:
 - https://www.youtube.com/watch?v=th5_9woFJmk&ab_channel=CoreySchafer
 - https://github.com/googleapis/google-api-python-client
@@ -38,6 +33,8 @@ import json
 import os
 
 import sqlite3
+
+import plotly.graph_objects as graph
 
 import googleapiclient.discovery
 from googleapiclient.discovery import build
@@ -220,7 +217,7 @@ def create_instance(mood_state, json): #json takes in retrieved_json, which has 
 
     return mood_instance.info()
 
-def save_to_database(mood_state):
+def save_to_database(mood_value, mood_state):
     """Accepts a string representation of mood state, and save the state to sql database
 
     Parameters:
@@ -230,35 +227,102 @@ def save_to_database(mood_state):
     Returns:
         string: information about the instances
     """
-    conn = sqlite3.connect("MoodLog.sqlite")
+    conn = sqlite3.connect("MoodLog.sqlite", timeout=10)
     cur = conn.cursor()
 
-    drop_table = '''
-        DROP TABLE IF EXISTS "UserMood";
-    '''
+    # drop_table = '''
+    #     DROP TABLE IF EXISTS "UserMood";
+    # '''
+
+    #conn.create_function("current_mood", 1, mood_state)
 
     create_table = '''
-        CREATE TABLE IF NOT EXIST "UserMood" (
+        CREATE TABLE IF NOT EXISTS "UserMood" (
             "ID"	INTEGER UNIQUE,
-            "Mood"	TEXT NOT NULL,
-            "Date"	NUMERIC NOT NULL,
+            "Mood_value"    TEXT NOT NULL,
+            "Mood_state"	TEXT NOT NULL,
+            "Date" DATE NOT NULL,
             PRIMARY KEY("ID" AUTOINCREMENT)
         );
     '''
 
     insert_data = '''
-    INSERT INTO UserMood VALUES (
-        NULL,
-        "{mood_state}",
-        ?
+        INSERT INTO UserMood VALUES (
+            NULL,
+            ?,
+            ?,
+            datetime('now')
     )
     '''
 
-    cur.execute(drop_table)
+    #cur.execute(drop_table)
     cur.execute(create_table)
-    cur.execute(insert_data)
+    cur.execute(insert_data, (mood_value, mood_state,))
 
     conn.commit()
+
+def query_recent_12():
+    mood_value = []
+    mood_state = []
+    date = []
+
+    conn = sqlite3.connect("Moodlog.sqlite", timeout=10)
+    cur = conn.cursor()
+
+    query = '''
+        SELECT * FROM (
+        SELECT * FROM UserMood ORDER BY ID DESC LIMIT 12)
+        ORDER BY ID ASC;
+    '''
+    cur.execute(query)
+
+    results = cur.fetchall()
+    #results == [(1, '5', 'positive', '2021-04-28 20:22:08'), (2, '5', 'positive', '2021-04-28 20:22:33')]
+
+    for each_result in results:
+        mood_value.append(each_result[1])
+        mood_state.append(each_result[2])
+        date.append(each_result[3])
+
+    return mood_value, mood_state, date
+
+def call_mood_graph(mood_value, mood_state, date):
+    """Retrieve 30 mood data from sql databse, and visualize the data using plotly
+
+    Parameters:
+        mood_value (from SQL Database)
+        mood_state (from SQL Database)
+        date (from SQL Database)
+
+    Returns:
+        None (auto open HTML)
+    """
+    # dates = ["4-28", "4-29", "4-30", "5-1", "5-2"]
+    # mood_value = [4, 2, 5, 4, 3]
+    # mood_state = ["positive", "negative", "positive", "positive", "neutral"]
+
+    scatter_data = graph.Scatter(
+        x=date,
+        y=mood_value,
+        text=mood_state,
+        marker={'symbol':'circle', 'size':12, 'color': 'royalblue'},
+        mode='lines+markers+text',
+        textposition="top center",
+        line=dict(color='royalblue', width=4))
+
+    basic_layout = graph.Layout(
+        title='Overview of Your Recent Mood',
+        xaxis_title='Date',
+        yaxis_title='Mood')
+
+    fig = graph.Figure(
+        data=scatter_data,
+        layout=basic_layout
+    )
+
+    fig.update_yaxes(categoryorder="category ascending")
+
+    fig.write_html("Mood_Overview.html", auto_open=True)
 
 def main():
     exercise_list = []
@@ -279,7 +343,10 @@ def main():
                 print("----- END OF PROGRAM -----")
                 break
             elif INPUT_QUERY == "review mood":
-                pass #show the last 10 moods in a graph
+                mood_value, mood_state, date = query_recent_12()
+                call_mood_graph(mood_value, mood_state, date)
+                #call_mood_graph() #show the last 10 moods in a graph
+                INPUT_QUERY = input('Start exercise by clicking the URL or "exit": ')
 
             else: #other word string
                 print("1 ERROR: Invalid numeric value. Enter a number between 1 to 5.")
@@ -293,6 +360,7 @@ def main():
                 for each_dict in suggested_exercise_dict['items']:
                     exercise_list.append(create_instance(user_mood_state, each_dict))
 
+                save_to_database(INPUT_QUERY, user_mood_state)
                 print("Thank you. Your mood has been logged.")
 
                 print("Based on your mood today, Here are your suggested exercise videos:")
