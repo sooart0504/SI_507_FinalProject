@@ -230,12 +230,6 @@ def save_to_database(mood_value, mood_state):
     conn = sqlite3.connect("MoodLog.sqlite", timeout=10)
     cur = conn.cursor()
 
-    # drop_table = '''
-    #     DROP TABLE IF EXISTS "UserMood";
-    # '''
-
-    #conn.create_function("current_mood", 1, mood_state)
-
     create_table = '''
         CREATE TABLE IF NOT EXISTS "UserMood" (
             "ID"	INTEGER UNIQUE,
@@ -245,7 +239,6 @@ def save_to_database(mood_value, mood_state):
             PRIMARY KEY("ID" AUTOINCREMENT)
         );
     '''
-
     insert_data = '''
         INSERT INTO UserMood VALUES (
             NULL,
@@ -255,7 +248,6 @@ def save_to_database(mood_value, mood_state):
     )
     '''
 
-    #cur.execute(drop_table)
     cur.execute(create_table)
     cur.execute(insert_data, (mood_value, mood_state,))
 
